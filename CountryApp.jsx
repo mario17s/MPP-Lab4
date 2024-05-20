@@ -11,7 +11,9 @@ export default function CountryApp(){
     const loadData = () => {
         console.log("fetch");
         console.log(storedItems);
-        fetch(`http://localhost:8081/`)
+        fetch(`http://localhost:8081/`, {headers: {
+            'Authorization': `Bearer ${localStorage.getItem('refreshToken')}`
+          }})
         .then(res => {return res.json()})
         .then(data => {
             console.log(data);

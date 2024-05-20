@@ -11,6 +11,10 @@ const cors = require('cors');
 app.use(express.json());
 app.use(cors());
 const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
+const jwt_decode = require('jwt-decode');
+
+
 
 const pool = new Pool({
     user: 'postgres',
@@ -21,13 +25,13 @@ const pool = new Pool({
   });
   
   // Test the connection
-  pool.query('SELECT NOW()', (err, res) => {
+ /* pool.query('SELECT NOW()', (err, res) => {
     if (err) {
       console.error('Error connecting to PostgreSQL database:', err);
     } else {
       console.log('Connected to PostgreSQL database');
     }
-  });
+  });*/
 
 
 let countriesList = [
@@ -47,7 +51,10 @@ app.listen(8081, () =>{
 
 app.get('/', (req, res) => {
     //if(countriesList.length === 0)
-    pool.query('SELECT * FROM Countries', (err, result) => {
+    const token = req.headers.authorization.split(' ')[1];
+    const decodedToken = jwt_decode.jwtDecode(token);
+    console.log(decodedToken);
+    pool.query('SELECT * FROM Countries WHERE username = $1',[decodedToken.email] , (err, result) => {
         if (err) {
         console.error('Error executing SELECT query:', err);
         } else {
@@ -238,7 +245,7 @@ app.post("/login", async (req, res) => {
         return res.status(400).json({message: "Email does not match"})
     console.log(credentials[0].password);
     console.log(password);
-    if(credentials[0].password != password)
+    if(!(await bcrypt.compare(password, credentials[0].password)))
         return res.status(400).json({message: "Password does not match"})
 
     const expiresIn = 30;
@@ -250,7 +257,7 @@ app.post("/login", async (req, res) => {
         }
     )
 
-    const refreshTokenExpiresIn = 2592000; // 30 days in seconds
+    const refreshTokenExpiresIn = 2592000;
 
     // Generate a refresh token
     const refreshToken = jwt.sign(
@@ -266,10 +273,11 @@ app.post("/login", async (req, res) => {
 })
 
 app.post("/register/do", async (req, res) => {
+    console.log("here");
     const {email, password} = req.body;
-    
+    const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query('INSERT INTO Users values($1, $2)', 
-        [email, password]);
+        [email, hashedPassword]);
     
     res.json({message: "Thanks for registering!"});  
 })
